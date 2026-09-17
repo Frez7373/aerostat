@@ -4,7 +4,7 @@
 
 local BASE_URL = "https://raw.githubusercontent.com/Frez7373/aerostat/main/"
 local ROOT = "/aerostat"
-local VERSION = "1.0.1"
+local VERSION = "1.0.2"
 
 local function line()
     print("----------------------------------------------")
@@ -64,17 +64,37 @@ local function askNumber(prompt, default)
     end
 end
 
-local function askSide()
+local function askSide(prompt, default, allowNone)
     local sides = {"left", "right", "front", "back", "top", "bottom"}
+
     while true do
         print("")
-        print("Redstone output side:")
+        print(prompt)
+
         for i, side in ipairs(sides) do
             print(i .. ". " .. side)
         end
-        write("Choose side [1]: ")
-        local n = tonumber(read()) or 1
-        if sides[n] then return sides[n] end
+
+        if allowNone then
+            print("7. none / disabled")
+        end
+
+        write("Choose [" .. tostring(default) .. "]: ")
+        local input = read()
+        local n = tonumber(input)
+
+        if input == "" then
+            n = default
+        end
+
+        if n and sides[n] then
+            return sides[n]
+        end
+
+        if allowNone and n == 7 then
+            return "none"
+        end
+
         print("Invalid side.")
     end
 end
@@ -83,14 +103,16 @@ local function installAirship()
     ensureDir()
 
     local terminalId = askNumber("Airship terminal number", 1)
-    local side = askSide()
+    local burnerSide = askSide("Burner redstone output side:", 1, false)
+    local ventSide = askSide("Steam Vent redstone output side:", 2, true)
 
     local target = ROOT .. "/airship_terminal.lua"
     if not download("airship_terminal.lua", target) then pause(); return end
 
     local config = textutils.serialize({
         terminalId = terminalId,
-        redstoneSide = side
+        burnerSide = burnerSide,
+        ventSide = ventSide
     })
 
     saveText(ROOT .. "/config", config)
@@ -100,7 +122,8 @@ local function installAirship()
     print("")
     print("Airship terminal installed.")
     print("Terminal ID : " .. terminalId)
-    print("Redstone    : " .. side)
+    print("Burner      : " .. burnerSide)
+    print("Steam Vent  : " .. ventSide)
     print("Start with: /aerostat/airship_terminal.lua")
     pause()
 end
