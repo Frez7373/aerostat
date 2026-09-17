@@ -4,7 +4,7 @@
 
 local BASE_URL = "https://raw.githubusercontent.com/Frez7373/aerostat/main/"
 local ROOT = "/aerostat"
-local VERSION = "1.0.0"
+local VERSION = "1.0.1"
 
 local function line()
     print("----------------------------------------------")
