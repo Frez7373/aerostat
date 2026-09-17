@@ -158,7 +158,7 @@ local function selectAirship()
     end
 
     print("")
-    write("Select number (Q = cancel): ")
+    write("Select row or terminal ID (Q = cancel): ")
 
     local input = read()
 
@@ -166,14 +166,27 @@ local function selectAirship()
         return
     end
 
-    local index = tonumber(input)
+    local value = tonumber(input)
 
-    if index and ids[index] then
-        selectedTerminal = ids[index]
-        lastMessage = "Selected airship " .. tostring(selectedTerminal)
-    else
-        lastMessage = "Invalid selection"
+    if value then
+        value = math.floor(value)
+
+        -- Prefer an exact terminal ID.
+        if terminals[value] then
+            selectedTerminal = value
+            lastMessage = "Selected airship " .. tostring(selectedTerminal)
+            return
+        end
+
+        -- Otherwise allow selecting by row number.
+        if ids[value] then
+            selectedTerminal = ids[value]
+            lastMessage = "Selected airship " .. tostring(selectedTerminal)
+            return
+        end
     end
+
+    lastMessage = "Invalid selection"
 end
 
 local function draw()
@@ -192,6 +205,8 @@ local function draw()
 
     if #ids == 0 then
         print("No airships found.")
+        print("")
+        print("Waiting for STATUS packets...")
     else
         for row, id in ipairs(ids) do
             local t = terminals[id]
@@ -229,7 +244,7 @@ local function draw()
 
     term.setCursorPos(1, bottom + 1)
     if selected then
-        print("Selected: airship " .. tostring(selectedTerminal))
+        print("Selected: airship " .. tostring(selectedTerminal) .. "  PC:" .. tostring(selected.computerId))
     else
         print("Selected: none")
     end
@@ -281,17 +296,18 @@ local function handleMouse(x, y)
         if x <= 13 then
             askHeight()
         elseif x <= 25 then
-            sendCommand({type = "LOWER"})
+            sendCommand({type="LOWER"})
         elseif x <= 36 then
-            sendCommand({type = "HOLD"})
+            sendCommand({type="HOLD"})
         elseif x <= 50 then
-            sendCommand({type = "CALIBRATE_HOME"})
+            sendCommand({type="CALIBRATE_HOME"})
         end
     elseif y == bottom + 6 and x <= 22 then
         selectAirship()
     end
 end
 
+-- Start discovery immediately.
 sendDiscovery()
 
 draw()
@@ -302,10 +318,17 @@ while running do
     local event, p1, p2, p3 = os.pullEventRaw()
 
     if event == "rednet_message" then
+        -- CC:Tweaked event format:
+        -- rednet_message, senderId, message, protocol
         local senderId = p1
-        local message = p3
-        updateTerminal(senderId, message)
-        draw()
+        local message = p2
+        local protocol = p3
+
+        if protocol == PROTOCOL then
+            updateTerminal(senderId, message)
+            lastMessage = "Status received from PC " .. tostring(senderId)
+            draw()
+        end
 
     elseif event == "timer" and p1 == refreshTimer then
         sendDiscovery()
@@ -320,15 +343,15 @@ while running do
             draw()
 
         elseif c == "l" then
-            sendCommand({type = "LOWER"})
+            sendCommand({type="LOWER"})
             draw()
 
         elseif c == "h" then
-            sendCommand({type = "HOLD"})
+            sendCommand({type="HOLD"})
             draw()
 
         elseif c == "c" then
-            sendCommand({type = "CALIBRATE_HOME"})
+            sendCommand({type="CALIBRATE_HOME"})
             draw()
 
         elseif c == "a" then
